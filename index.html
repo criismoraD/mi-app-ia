@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Primera App de IA</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        #webcam-container canvas {
+            width: 100%;
+            max-width: 300px;
+            border-radius: 8px;
+        }
+        #label-container {
+            max-width: 320px;
+            margin: 15px auto;
+            text-align: left;
+        }
+        #label-container div {
+            padding: 4px 8px;
+            margin: 4px 0;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #status {
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mi App de IA</h1>
+
+    <button id="start-btn">Iniciar cámara</button>
+    <p id="status">Pulsa el botón para empezar.</p>
+
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+
+    <script type="text/javascript">
+        const statusEl = document.getElementById("status");
+        const startBtn = document.getElementById("start-btn");
+
+        startBtn.addEventListener("click", async () => {
+            startBtn.disabled = true;
+            try {
+                await run();
+            } catch (error) {
+                statusEl.textContent = "Error: " + error.message +
+                    " — Abre esta página desde https:// (GitHub Pages) o http://localhost, no desde un archivo local.";
+                startBtn.disabled = false;
+            }
+        });
+
+        async function run() {
+            // 1. Cargar el modelo
+            const URL = "https://teachablemachine.withgoogle.com/models/Fn2su5IzF/";
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            statusEl.textContent = "Cargando modelo...";
+            const model = await tmImage.load(modelURL, metadataURL);
+            statusEl.textContent = "Modelo listo. Pidiendo permiso de cámara...";
+
+            // 2. Preparar la entrada (webcam)
+            const webcam = new tmImage.Webcam(200, 200, true); // (ancho, alto, flip)
+            await webcam.setup(); // Pedir permiso para la cámara
+            await webcam.play();
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            statusEl.textContent = "Cámara activa. Prediciendo...";
+
+            // 3. Bucle de predicción
+            while (true) {
+                webcam.update(); // Actualizar frame de la webcam
+
+                // 4. Hacer la predicción
+                const prediction = await model.predict(webcam.canvas);
+
+                // 5. Mostrar resultados
+                let container = document.getElementById("label-container");
+                container.innerHTML = ""; // Limpiar resultados anteriores
+                for (let i = 0; i < prediction.length; i++) {
+                    container.innerHTML += `<div>${prediction[i].className}: ${prediction[i].probability.toFixed(2)}</div>`;
+                }
+
+                await tf.nextFrame(); // Esperar al siguiente frame
+            }
+        }
+    </script>
+</body>
+</html>
